@@ -1,3 +1,7 @@
+# Continuity Kit 0.6.6 — live command compatibility hotfix
+
+Version 0.6.6 fixes the live AI Dungeon failure triggered by `/ck event ...` commands. Timeline commands are now consumed without the unreliable stop-only input response. The decision is saved immediately, the fixed result is appended after the resulting ordinary story continuation, and the command itself is excluded from narrative history. All 0.6.5 timeline and player-card behavior remains available.
+
 # Continuity Kit 0.6.5 — player-approved canon events
 
 Version 0.6.5 adds an approval gate to the structured canon timeline. When a matching `[CANON EVENT]` approaches, it is withheld from narrator guidance and a fixed notice asks the player to choose:

@@ -1,3 +1,9 @@
+# 0.6.6
+
+- Replaces the timeline command's stop-only input response after live AI Dungeon returned `Unable to run scenario scripts`.
+- Consumes `/ck event ...` safely, saves the decision immediately, excludes the command from narrative history, and reports the fixed result after the ordinary continuation.
+- Adds an integrated regression test for the non-stopping command path.
+
 # 0.6.5
 - Adds player approval before a matching structured canon event is supplied to the narrator.
 - Adds `/ck event allow`, `alter`, `postpone`, `skip`, `status`, and `reset` with persistent decisions keyed by event ID.

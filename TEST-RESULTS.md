@@ -1,4 +1,4 @@
-# Local validation — 0.6.5
+# Local validation — 0.6.6
 
 169 tests passed on the bundled Node runtime:
 

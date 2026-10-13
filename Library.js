@@ -23,7 +23,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 */
-/* Continuity Kit 0.6.5 — adapted Inner Self 1.0.2 / bundled Auto-Cards 1.1.3.
+/* Continuity Kit 0.6.6 — adapted Inner Self 1.0.2 / bundled Auto-Cards 1.1.3.
  * Upstream: LewdLeah, MIT; see LICENSE and CHANGES.md. */
 // Your "Library" tab should look like this
 
@@ -9246,7 +9246,7 @@ var ContinuityKit = (function () {
     if(s.prefix===null)c.description=s.description;
     else {const m=marker.exec(c.description||'');c.description=m?s.prefix+(c.description||'').slice(m.index):s.description;}
   }}
-  function diagnostics(){const d=data(),o=settings(),c=card();c.description='Continuity Kit 0.6.5 — diagnostics (automatically refreshed)\nMode: '+d.mode+'\nLast result: '+d.last+'\nBuilt-in Memories section seen: '+(d.nativeMemories?'yes':'no')+'\nMissed scene updates: '+d.misses+'\n\nCURRENT SCENE\n'+fields.map(k=>k+': '+(o.locks[k]||d.scene[k]?.value||'Unknown')+(o.locks[k]?' [locked]':'')).join('\n')+'\n\nWARNINGS\n'+(d.warnings.join('\n')||'None')+TargetedMemory.status()+CharacterReferences.status()+PlayerProfile.status()+PlayerCharacter.status()+GuidedArc.status(o)+'\nCANON CONSISTENCY\n'+(d.canonStatus||'Not applied yet')+'\n'+'\n\nLAST RAW SCENE RESPONSE ('+(d.rawSceneReplyLength||0)+' characters; first 1800 shown):\n'+(d.rawSceneReplyLength===0?'(Empty response received)':d.rawSceneReply||'None yet')+'\n\nNPC thoughts are optional: Configure Inner Self. Auto-Cards settings: Configure Auto-Cards. Existing card entries are protected; card memory notes remain AI-written and fallible.';}
+  function diagnostics(){const d=data(),o=settings(),c=card();c.description='Continuity Kit 0.6.6 — diagnostics (automatically refreshed)\nMode: '+d.mode+'\nLast result: '+d.last+'\nBuilt-in Memories section seen: '+(d.nativeMemories?'yes':'no')+'\nMissed scene updates: '+d.misses+'\n\nCURRENT SCENE\n'+fields.map(k=>k+': '+(o.locks[k]||d.scene[k]?.value||'Unknown')+(o.locks[k]?' [locked]':'')).join('\n')+'\n\nWARNINGS\n'+(d.warnings.join('\n')||'None')+TargetedMemory.status()+CharacterReferences.status()+PlayerProfile.status()+PlayerCharacter.status()+GuidedArc.status(o)+'\nCANON CONSISTENCY\n'+(d.canonStatus||'Not applied yet')+'\n'+'\n\nLAST RAW SCENE RESPONSE ('+(d.rawSceneReplyLength||0)+' characters; first 1800 shown):\n'+(d.rawSceneReplyLength===0?'(Empty response received)':d.rawSceneReply||'None yet')+'\n\nNPC thoughts are optional: Configure Inner Self. Auto-Cards settings: Configure Auto-Cards. Existing card entries are protected; card memory notes remain AI-written and fallible.';}
   const rules='\n[CONTINUITY GUIDANCE: Story cards describe established background and starting conditions. Later played events may change relationships and status; never reset them merely because a card activates. NPC thoughts are subjective, not world facts; characters know only what they witnessed or plausibly learned. Do not reveal secrets through narration or invent player thoughts, choices, goals or feelings. Corrections below are player-authored. A scene snapshot is fallible and may lag one response; explicit newer events take priority over an unlocked snapshot.]\n';
   function block(o){const d=data();return rules+'[CURRENT SCENE]\n'+fields.map(k=>k+': '+(o.locks[k]||d.scene[k]?.value||'Unknown')+(o.locks[k]?' [PLAYER LOCK]':'')).join('\n')+'\n'+Object.keys(o.locks).filter(k=>!fields.includes(k)).map(k=>'PLAYER CORRECTION: '+o.locks[k]).join('\n')+'\n[/CURRENT SCENE]\n';}
   const task='\n[SCENE UPDATE TASK: Before continuing the story, output exactly one short block: <scene>{"field":"location","value":"short current value","quote":"exact quote from recent played story"}</scene> then the story. Choose ONE of time, location, present, stage, pending. Record only a changed fact explicitly established BEFORE this response, not plans as completed events, future canon, guesses or player inner states. A quote must contain at least 12 characters copied from recent story. Never update a PLAYER LOCK. Use <scene>{}</scene> when no supported change exists. This is bookkeeping, not dialogue. After the block, continue normally; leave player responses to the player.]\n';
@@ -9343,8 +9343,15 @@ var ContinuityKit = (function () {
       FamilyReferences.remember(value);
       MentionReferences.remember(value);
       const profileCommand=PlayerProfile.command(value);if(profileCommand){d.last=profileCommand.message;diagnostics();return {text:'[Continuity profile: '+profileCommand.message+']',stop:true};}
-      const timelineCommand=CanonTimeline.command(value,o);if(timelineCommand){d.last=timelineCommand.message;diagnostics();return {text:'[Continuity timeline: '+timelineCommand.message+']',stop:true};}
-      const arcCommand=GuidedArc.command(value,o);if(arcCommand){d.last=arcCommand.message;diagnostics();return {text:'[Continuity arc: '+arcCommand.message+']',stop:true};}
+      const timelineCommand=CanonTimeline.command(value,o);
+      if(timelineCommand){
+        // Live AI Dungeon currently rejects the stop-only input response used by
+        // older /ck commands. Consume the command, retain its fixed result for
+        // the next ordinary output, and let the turn continue safely.
+        d.last=timelineCommand.message;d.commandNotice='[Continuity timeline: '+timelineCommand.message+']';value='';globalThis.text='';
+      }else{
+        const arcCommand=GuidedArc.command(value,o);if(arcCommand){d.last=arcCommand.message;diagnostics();return {text:'[Continuity arc: '+arcCommand.message+']',stop:true};}
+      }
       if(/^\s*\/ck\s+refresh\s*$/i.test(value)){d.requestRefresh=true;d.last='Scene refresh requested.';diagnostics();return {text:'[Continuity update: refresh requested.]'};}
       // /hm is retired; keep accidental commands out of subsequent story contexts.
       if(/^\s*\/hm\b/i.test(value)){d.last='Old /hm commands are retired; use the Continuity Control story card.';diagnostics();return {text:'[Continuity control: inspect the Continuity Control story card.]'};}
@@ -9410,7 +9417,8 @@ var ContinuityKit = (function () {
             d.scene[u.field]={value:u.value.trim(),source:source.hash};d.last='Recorded '+u.field+' from recent story (AI interpretation; not independently verified).';
           }
         }catch(e){d.misses++;d.last='Scene update rejected: '+e.message;}}
-        d.sources=[];diagnostics();return {text:narrative.trim()?EventMemory.observe(PlayerCharacter.observe(narrative,o),o)+CanonTimeline.notice():'[No story continuation was generated. Retry this response.]'};
+        d.sources=[];let story=narrative.trim()?EventMemory.observe(PlayerCharacter.observe(narrative,o),o)+CanonTimeline.notice():'[No story continuation was generated. Retry this response.]';
+        if(d.commandNotice){story+='\n\n'+d.commandNotice;d.commandNotice='';}diagnostics();return {text:story};
       }
       if(d.mode==='cards'){upstream('output');diagnostics();return {text:globalThis.text||value};}
       if(d.mode==='npc'){
@@ -9419,7 +9427,8 @@ var ContinuityKit = (function () {
         else {globalThis.text=value;d.last='NPC operation absent or malformed; narrative preserved.';}
         diagnostics();return {text:globalThis.text||'[No story continuation was generated. Retry this response.]'};
       }
-      const story=d.mode==='story'?EventMemory.observe(PlayerCharacter.observe(value,o),o)+CanonTimeline.notice():value;diagnostics();return {text:story};
+      let story=d.mode==='story'?EventMemory.observe(PlayerCharacter.observe(value,o),o)+CanonTimeline.notice():value;
+      if(d.mode==='story'&&d.commandNotice){story+='\n\n'+d.commandNotice;d.commandNotice='';}diagnostics();return {text:story};
     }
     return {text:value};
   }

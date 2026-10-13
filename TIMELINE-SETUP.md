@@ -1,4 +1,4 @@
-# Continuity Kit 0.6.5 — player-approved timeline setup
+# Continuity Kit 0.6.6 — player-approved timeline setup
 
 Add these lines to **Continuity Control → Details → Entry**:
 
@@ -18,6 +18,8 @@ When the latest eligible story passage matches a valid `[CANON EVENT]` card by i
 /ck event status      # show the waiting event and decision counts
 /ck event reset       # clear all timeline decisions
 ```
+
+AI Dungeon treats these as safe maintenance inputs: the command is removed from narrative history, its decision is saved immediately, and a normal story continuation is generated. The fixed command result is appended after that continuation. This avoids the live platform failure caused by stop-only input responses.
 
 Decisions are stored in the adventure's script state and keyed by the structured event ID. Deleting an event card also removes its stale saved decision on the next timeline evaluation. Approval does not claim that the event happened; it only permits reference guidance on later matching turns. Played history, prerequisites and player agency still take priority.
 
