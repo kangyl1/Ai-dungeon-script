@@ -1,0 +1,26 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert'),path=require('path');let n=0;
+const event={schema:1,id:'port-rescue',title:'Port rescue',calendar:'AD',years:[2025,2026],cues:['port rescue'],locations:['Harbor'],participants:['Mira'],prerequisites:['Mira remains missing'],changes:['Already rescued'],summary:'A rescue is attempted.',source:'Fictional test fixture',certainty:'approximate'};
+const card=e=>({title:e.title,entry:'[CANON EVENT]\n'+JSON.stringify(e)+'\n[/CANON EVENT]'});
+function fresh(text='The port rescue is discussed.',cards=[card(event)]){const e={state:{continuityKit01:{}},history:[{type:'continue',text}],storyCards:cards};vm.createContext(e);for(const f of ['Timeline','References'])vm.runInContext(fs.readFileSync(path.join(__dirname,'..',f+'.js'),'utf8'),e);return e;}
+const on={timeline:true};
+function test(s,f){f();n++;console.log('PASS',s);}
+test('disabled and legacy switch inert',()=>{const e=fresh();assert.equal(e.CanonTimeline.block({},''),'');assert.equal(e.CanonTimeline.block({mushokuTimeline:true},''),'');});
+test('no cards means no embedded setting',()=>{assert.equal(fresh('Ranoa enrollment',[]).CanonTimeline.block(on,''),'');});
+test('topic retrieval preserves checks without state mutation',()=>{const e=fresh(),out=e.CanonTimeline.block(on,'');assert(out.includes('Mira remains missing'));assert(out.includes('Already rescued'));assert(!e.state.continuityKit01.timeline.completed);});
+test('year and location calendar matching',()=>{assert(fresh('Current year: AD2025. Harbor.').CanonTimeline.block(on,''));assert.equal(fresh('Current year: K2025. Harbor.').CanonTimeline.block(on,''),'');});
+test('other settings and negative years supported',()=>{const e=fresh('Current year: ERA -20. Citadel.',[card({...event,calendar:'ERA',years:[-30,-10],locations:['Citadel']})]);assert(e.CanonTimeline.block(on,''));});
+test('birth years and hypothetical dates ignored',()=>{for(const s of ['Birth year: AD2025. Harbor.','We may arrive in AD2025 at Harbor.'])assert.equal(fresh(s).CanonTimeline.block(on,''),'');});
+test('unknown and relative dates can use topic',()=>{assert(fresh(undefined,[card({...event,years:null})]).CanonTimeline.block(on,'').includes('Relative/unknown'));});
+test('out of date topic remains clearly reference only',()=>{const e=fresh('Current year: AD2090. The port rescue is remembered.');assert(e.CanonTimeline.block(on,'').includes('referenceOnlyOutsideDate":true'));});
+test('ambiguous date place withheld',()=>{const e=fresh('Current year: AD2025. Harbor.',[card(event),card({...event,id:'second'})]);assert.equal(e.CanonTimeline.block(on,''),'');});
+test('duplicate ids both withheld',()=>{const e=fresh(undefined,[card(event),card({...event,id:'PORT-RESCUE'})]);assert.equal(e.CanonTimeline.block(on,''),'');assert(e.CanonTimeline.status().includes('Duplicate'));});
+test('invalid JSON and fields skip safely',()=>{for(const e of [{...event,years:[2026,2025]},{...event,cues:'bad'},{...event,schema:2},{...event,summary:''}])assert.equal(fresh(undefined,[card(e)]).CanonTimeline.block(on,''),'');assert.equal(fresh(undefined,[{entry:'[CANON EVENT]oops[/CANON EVENT]'}]).CanonTimeline.block(on,''),'');});
+test('ordinary lore ignored even if mentions markers',()=>{assert.equal(fresh(undefined,[{entry:'Lore about [CANON EVENT]'}]).CanonTimeline.block(on,''),'');});
+test('entries after 887 normal cards found; cap fails closed',()=>{const a=Array.from({length:887},()=>({entry:'ordinary lore'}));assert(fresh(undefined,[...a,card(event)]).CanonTimeline.block(on,''));assert.equal(fresh(undefined,Array.from({length:201},(_,i)=>card({...event,id:String(i)}))).CanonTimeline.block(on,''),'');});
+test('edit delete and undo do not retain stale clock or index',()=>{const e=fresh();assert(e.CanonTimeline.block(on,''));e.storyCards=[];assert.equal(e.CanonTimeline.block(on,''),'');e.storyCards=[card(event)];e.history=[];assert.equal(e.CanonTimeline.block(on,''),'');});
+test('max two references and 2800 characters; exact duplicate context withheld',()=>{const e=fresh(undefined,Array.from({length:8},(_,i)=>card({...event,id:String(i)})));const b=e.CanonTimeline.block(on,'');assert(e.state.continuityKit01.timeline.selected.length<=2);assert(b.length<=2800);assert.equal(e.CanonTimeline.block(on,b),'');});
+test('whole oversized reference skipped not truncated',()=>{const e=fresh(undefined,[card({...event,summary:'x'.repeat(800),prerequisites:Array(8).fill('p'.repeat(200)),changes:Array(8).fill('q'.repeat(200))})]);assert.equal(e.CanonTimeline.block(on,''),'');});
+test('supplemental ceiling and core preserved',()=>{const e=fresh();assert.equal(e.CharacterReferences.enrich('CORE',on,4),'CORE');const b=e.CharacterReferences.enrich('CORE',on,20000);assert(b.startsWith('CORE'));assert(b.includes('CANON TIMELINE'));assert(b.length-4<=6000);});
+test('non English cues and regex punctuation literal',()=>{assert(fresh('救援開始',[card({...event,cues:['救援開始']})]).CanonTimeline.block(on,''));assert(fresh('Plan (A)+',[card({...event,cues:['Plan (A)+']})]).CanonTimeline.block(on,''));});
+test('profile and player dialogue excluded',()=>{const e=fresh();e.history=[{type:'start',text:'port rescue'},{type:'say',text:'port rescue'}];assert.equal(e.CanonTimeline.block(on,''),'');});
+console.log(n+' universal timeline tests passed');
