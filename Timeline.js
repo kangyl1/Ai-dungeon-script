@@ -18,12 +18,21 @@ var CanonTimeline=(function(){
   function parse(card){
     const raw=content(card);
     if(raw.length>6000||!raw.endsWith(END))throw Error('invalid wrapper/size');
-    const e=JSON.parse(raw.slice(START.length,-END.length).trim());
+    const parsed=JSON.parse(raw.slice(START.length,-END.length).trim());
+    const e={...parsed,
+      calendar:parsed&&parsed.calendar===undefined?'':parsed&&parsed.calendar,
+      years:parsed&&parsed.years===undefined?null:parsed&&parsed.years,
+      locations:parsed&&parsed.locations===undefined?[]:parsed&&parsed.locations,
+      participants:parsed&&parsed.participants===undefined?[]:parsed&&parsed.participants,
+      prerequisites:parsed&&parsed.prerequisites===undefined?[]:parsed&&parsed.prerequisites,
+      changes:parsed&&parsed.changes===undefined?[]:parsed&&parsed.changes
+    };
     if(!e||e.schema!==1||!str(e.id,80)||!str(e.title,120)||!str(e.summary,800)||!str(e.source,240)||!['verified','approximate','uncertain'].includes(e.certainty))throw Error('invalid required fields');
     for(const k of ['cues','locations','participants','prerequisites','changes'])if(!list(e[k],k==='prerequisites'||k==='changes'?200:100))throw Error('invalid '+k);
     if(!e.cues.length&&!e.locations.length)throw Error('no retrieval cues');
     if(e.years!==null&&(!Array.isArray(e.years)||e.years.length!==2||!e.years.every(Number.isSafeInteger)||e.years[0]>e.years[1]))throw Error('invalid years');
-    if(!str(e.calendar,40))throw Error('invalid calendar');
+    if(e.years!==null&&!str(e.calendar,40))throw Error('invalid calendar');
+    if(e.years===null&&e.calendar!==''&&!str(e.calendar,40))throw Error('invalid calendar');
     return e;
   }
   function index(){
@@ -44,7 +53,7 @@ var CanonTimeline=(function(){
     const m=/^([\p{L}][\p{L}\p{N}_-]{0,39}?)\s*(-?\d{1,9})$/u.exec(String(raw||'').trim());
     return m?{calendar:key(m[1]),year:Number(m[2])}:null;
   }
-  function when(e){return e.years?e.calendar+' '+e.years.join(' to '):'Relative/unknown; see prerequisites';}
+  function when(e){return e.years?e.calendar+' '+e.years.join(' to '):'';}
   function candidates(opts){
     const d=data(),idx=index();d.errors=idx.errors.slice(0,8);
     const text=latest(),time=currentTime(text,opts.locks&&opts.locks.time),location=String(opts.locks&&opts.locks.location||text),found=[];
@@ -108,7 +117,10 @@ var CanonTimeline=(function(){
     const end='[/CANON TIMELINE REFERENCE]\n';let body='';
     for(const c of approved){
       if(d.selected.length===2)break;
-      const e=c.e,b=JSON.stringify({title:e.title,playerDecision:c.choice==='alter'?'ALTER — preserve the event only in a form consistent with played history':c.choice==='allow'?'ALLOW — canon form may occur if prerequisites still hold':undefined,when:when(e),certainty:e.certainty,referenceOnlyOutsideDate:!!c.outside,participants:e.participants,locations:e.locations,canon:e.summary,checkBeforeUsing:e.prerequisites,changesMayInvalidate:e.changes,source:e.source})+'\n';
+      const e=c.e,reference={title:e.title,playerDecision:c.choice==='alter'?'ALTER — preserve the event only in a form consistent with played history':c.choice==='allow'?'ALLOW — canon form may occur if prerequisites still hold':undefined,certainty:e.certainty,referenceOnlyOutsideDate:!!c.outside,participants:e.participants,canon:e.summary,checkBeforeUsing:e.prerequisites,changesMayInvalidate:e.changes,source:e.source};
+      if(when(e))reference.when=when(e);
+      if(e.locations.length)reference.locations=e.locations;
+      const b=JSON.stringify(reference)+'\n';
       if(intro.length+body.length+b.length+end.length>2800)continue;
       body+=b;d.selected.push(e.id);
     }
@@ -119,12 +131,12 @@ var CanonTimeline=(function(){
   function notice(){
     const d=data();if(!d.pending||!d.notify)return '';
     d.notify=false;d.nextReminder=d.tick+4;
-    return '\n\n'+NOTICE+'\nApproaching: '+d.pending.title+' ('+d.pending.when+')\n'+d.pending.summary+'\nThis event is withheld until you decide. Reply with /ck event allow, /ck event alter, /ck event postpone, or /ck event skip.\n[/CANON EVENT APPROVAL]';
+    return '\n\n'+NOTICE+'\nApproaching: '+d.pending.title+(d.pending.when?' ('+d.pending.when+')':'')+'\n'+d.pending.summary+'\nThis event is withheld until you decide. Reply with /ck event allow, /ck event alter, /ck event postpone, or /ck event skip.\n[/CANON EVENT APPROVAL]';
   }
   function summary(opts){
     const d=data(),decided=Object.values(d.decisions||{}).reduce((a,x)=>(a[x]=(a[x]||0)+1,a),{});
     if(!opts||!opts.timeline)return 'Canon Timeline is disabled.';
-    return (d.pending?'Waiting for approval: '+d.pending.title+' ('+d.pending.when+').':'No canon event is waiting for approval.')+' Decisions: '+(Object.keys(decided).map(k=>k+' '+decided[k]).join(', ')||'none')+'.';
+    return (d.pending?'Waiting for approval: '+d.pending.title+(d.pending.when?' ('+d.pending.when+')':'')+'.':'No canon event is waiting for approval.')+' Decisions: '+(Object.keys(decided).map(k=>k+' '+decided[k]).join(', ')||'none')+'.';
   }
   function status(){const d=data();return '\nCANON TIMELINE\n'+(d.diagnostic||'Not evaluated')+'\n'+(d.pending?'Approval pending: '+d.pending.title+'\n':'')+(d.errors||[]).join('\n')+'\n';}
   return {block,command,notice,clean,status};

@@ -1,6 +1,6 @@
 # 0.6.2 validation
 
-148 local tests passed: 88 full-library/hook tests, 19 universal timeline tests, 11 clutter tests, and 10 each for event memory, family references and mention references.
+171 local tests passed: 95 full-library/hook tests, 26 universal timeline tests, 11 clutter tests, 10 each for event memory, family references and mention references, and 9 review-card reliability tests.
 
 New checks cover opt-in behavior, legacy switch remaining inert, no embedded canon, two different calendars including negative years, unknown dates, outside-date topic reference labelling, ambiguous date matches, invalid records, duplicate IDs, large normal lore decks, marked-card cap, card edits/deletions, undo, oversized entries, two-reference ceiling, shared budget, literal punctuation and non-English cues. Hook tests confirm structured cards work with the inherited library and maintenance turns receive no timeline block.
 

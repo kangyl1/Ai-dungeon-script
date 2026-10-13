@@ -1,3 +1,13 @@
+# Continuity Kit 0.6.7 — universal cue-only timeline events
+
+Version 0.6.7 lets a structured canon event work without a calendar, year, location, or manual Continuity Control lock. A distinctive phrase in the latest eligible story passage is enough to offer the event for approval. Cue-only cards omit time and location from the approval notice and narrator reference instead of displaying an unknown value. Existing dated/location-aware cards continue to work unchanged.
+
+For the Fittoa incident, cues such as `red orb`, `orb above Fittoa`, `white light over Fittoa`, and `mana calamity` can now trigger the approval gate wherever the altered adventure has reached that scene. The script still does not infer that the event occurred, and approval remains required when `Timeline approval: true`.
+
+This behavior is locally simulated and regression-tested; it has not been live-validated in AI Dungeon.
+
+---
+
 # Continuity Kit 0.6.6 — live command compatibility hotfix
 
 Version 0.6.6 fixes the live AI Dungeon failure triggered by `/ck event ...` commands. Timeline commands are now consumed without the unreliable stop-only input response. The decision is saved immediately, the fixed result is appended after the resulting ordinary story continuation, and the command itself is excluded from narrative history. All 0.6.5 timeline and player-card behavior remains available.

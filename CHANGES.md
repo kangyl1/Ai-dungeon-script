@@ -1,3 +1,11 @@
+# 0.6.7
+
+- Adds universal cue-only canon-event cards: `calendar`, `years`, and `locations` may be omitted when distinctive `cues` are supplied.
+- Cue matches remain independent of the current time and location, including when an explicit but different date/location appears in the story.
+- Omits time and location labels from approval notices and narrator references for universal cards rather than showing unknown placeholders.
+- Adds focused regression coverage for cue-only parsing, approval, display, and independence from date/location. Existing event cards and saved decisions remain compatible.
+- Local mocked-runtime validation only; no live AI Dungeon validation is claimed.
+
 # 0.6.6
 
 - Replaces the timeline command's stop-only input response after live AI Dungeon returned `Unable to run scenario scripts`.

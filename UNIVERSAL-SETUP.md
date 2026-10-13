@@ -1,4 +1,4 @@
-# Continuity Kit 0.6.2 — universal timeline reference helper
+# Continuity Kit 0.6.7 — universal timeline reference helper
 
 Script-first test release. No Mushoku events or other setting-specific event data are embedded in the new helper. Existing story cards have not been converted or changed. Keep 0.6.1 as a backup.
 
@@ -44,7 +44,7 @@ Put a single JSON object between the following markers in the card's Entry. This
 [/CANON EVENT]
 ```
 
-All fields are required. Use empty arrays where appropriate. `years` may be `null` for unknown/relative chronology; put relative timing in prerequisites. `certainty` must be `verified`, `approximate`, or `uncertain`; this is the card author's label, not script verification. IDs must be unique, ignoring case. Calendar identifiers should be short letters/words without spaces, e.g. K, AD, or Imperial. Exact date selection currently supports integer years, not month/day chronology.
+`schema`, `id`, `title`, `certainty`, `cues`, `summary`, and `source` are required. `locations`, `participants`, `prerequisites`, and `changes` default to empty arrays when omitted. `years` defaults to `null`, and `calendar` may be omitted whenever no year range is supplied. This creates a universal cue-only event with no time/location label. `certainty` must be `verified`, `approximate`, or `uncertain`; this is the card author's label, not script verification. IDs must be unique, ignoring case. Calendar identifiers should be short letters/words without spaces, e.g. K, AD, or Imperial. Exact date selection currently supports integer years, not month/day chronology.
 
 Limits: 200 event cards, 6,000 characters per marked entry, summary 800, title 120, source 240, ID 80, calendar 40. Arrays contain up to eight nonempty strings: prerequisites/changes 200 characters each; other arrays 100 each. At least one cue or location is required. Duplicate IDs and invalid records are skipped with diagnostics. More than 200 marked entries disables selection until the collection is reduced. Keep cards concise; an event too large for the output budget is withheld intact, not truncated.
 
@@ -54,7 +54,7 @@ Use distinctive cues, not common words like “fight”. Participants are refere
 
 The helper checks card entries for the marker each narrative context turn and parses only marked entries. It does not send the entire deck to the AI. It chooses at most two references, with a 2,800-character timeline ceiling inside the existing shared 6,000-character supplemental ceiling. Character/family references retain priority. No additional AI call or maintenance turn is introduced by this helper.
 
-It uses distinctive phrase matches in the latest eligible narrative passage (up to 4,000 characters). For date/location matching, it recognises a line beginning `Current year: AD2025.` or an optional existing time correction such as `time: AD2025`. Calendar names must match. Birth year, age and vague elapsed-time prose do not establish current time. It does not persist a guessed clock or arc position.
+It uses distinctive phrase matches in the latest eligible narrative passage (up to 4,000 characters). Cue matches do not require a current time or location and remain valid if the adventure has altered canon chronology or geography. For optional date/location matching, it recognises a line beginning `Current year: AD2025.` or an existing time correction such as `time: AD2025`. Calendar names must match. Birth year, age and vague elapsed-time prose do not establish current time. It does not persist a guessed clock or arc position.
 
 An explicit topic can retrieve a reference outside its baseline date range, labelled as such—useful for discussion or changed chronology. Date/location-only ties are withheld. A topic mention can still be hypothetical or historical; every reference is therefore background, not a scheduled event. It cannot automatically understand arbitrary prose or infer every relative prerequisite.
 

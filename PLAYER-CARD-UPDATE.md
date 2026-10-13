@@ -9,7 +9,7 @@ Back up the scenario scripts and adventure first. Test on a duplicate adventure 
 - Do not paste `PlayerCharacter.js` or the other developer modules into extra AI Dungeon script tabs. They are already bundled into `Library.js`.
 - Do not install a second copy beside the old Library. This release preserves the existing `continuityKit01` state namespace, profile, review archive, settings and cards.
 
-After saving, take one normal story turn containing a valid `[PLAYER PROFILE]`. Confirm that **Continuity Control** says version 0.6.6 and that these cards exist:
+After saving, take one normal story turn containing a valid `[PLAYER PROFILE]`. Confirm that **Continuity Control** says version 0.6.7 and that these cards exist:
 
 - `PLAYER — <name>`
 - `Player Character Review`

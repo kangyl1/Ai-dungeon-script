@@ -1,4 +1,4 @@
-# Continuity Kit 0.6.6 — player-approved timeline setup
+# Continuity Kit 0.6.7 — player-approved timeline setup
 
 Add these lines to **Continuity Control → Details → Entry**:
 
@@ -8,7 +8,7 @@ Timeline approval: true
 Guided arc: false
 ```
 
-When the latest eligible story passage matches a valid `[CANON EVENT]` card by its cue, or by a compatible explicit current year and location, the event is held back. After that narrative response, a fixed approval notice appears. Use one command:
+When the latest eligible story passage matches a valid `[CANON EVENT]` card by its cue, or by a compatible explicit current year and location, the event is held back. Cue matching never requires a time or location. After that narrative response, a fixed approval notice appears. Use one command:
 
 ```text
 /ck event allow       # canon form may be supplied if prerequisites still fit
@@ -26,6 +26,43 @@ Decisions are stored in the adventure's script state and keyed by the structured
 The notice is removed from the continuity layer's later source text. It is paced rather than printed on every output. Maintenance turns do not receive timeline guidance or notices. Set `Timeline approval: false` only if you deliberately want the older automatic-reference behavior.
 
 This feature requires structured `[CANON EVENT]` cards. It cannot convert ordinary lore cards into events, infer a reliable calendar from the player's birth year, or guarantee that AI Dungeon's model follows guidance. Local mocked-runtime tests passed; no live AI Dungeon validation is claimed.
+
+## Universal cue-only event card
+
+For events that should follow an altered story rather than a fixed canon date or place, omit `calendar`, `years`, and `locations`. The approval notice and narrator reference will not display a time or location:
+
+```text
+[CANON EVENT]
+{
+  "schema": 1,
+  "id": "fittoa-displacement",
+  "title": "Fittoa Displacement Incident",
+  "certainty": "approximate",
+  "cues": [
+    "Fittoa Displacement",
+    "teleportation disaster",
+    "displacement incident",
+    "red orb",
+    "orb above Fittoa",
+    "white light over Fittoa",
+    "mana calamity"
+  ],
+  "participants": ["Rudeus Greyrat", "Eris Boreas Greyrat"],
+  "prerequisites": [
+    "The disaster has not already occurred in played history.",
+    "Its cause and circumstances have not been changed or prevented."
+  ],
+  "changes": [
+    "Prevention, evacuation or changed locations can alter casualties and destinations.",
+    "Never teleport everyone merely because this reference was approved."
+  ],
+  "summary": "Baseline canon has a magical disaster scatter people from Fittoa. Rudeus and Eris arrive far away on the Demon Continent, beginning a survival and return journey. The player's destination is not established by this card.",
+  "source": "Scenario canon reference"
+}
+[/CANON EVENT]
+```
+
+Use specific phrases that naturally appear immediately before the event. A broad cue such as `orb`, `city`, or a character name can cause false prompts. Universal matching changes retrieval only: the event is still withheld until approval and is never marked as completed automatically.
 
 ---
 
