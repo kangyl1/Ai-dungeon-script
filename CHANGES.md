@@ -1,3 +1,11 @@
+# 0.6.5
+- Adds player approval before a matching structured canon event is supplied to the narrator.
+- Adds `/ck event allow`, `alter`, `postpone`, `skip`, `status`, and `reset` with persistent decisions keyed by event ID.
+- Withholds undecided, postponed and skipped events; labels allowed versus altered guidance without claiming the event occurred.
+- Emits a fixed, paced approval notice after normal narrative output and strips that notice from later continuity source text.
+- Defaults existing timeline-enabled adventures to approval mode when the new setting is absent. `Timeline approval: false` restores 0.6.4 automatic-reference behavior.
+- Preserves all previous player-card, story-card, Auto-Cards and continuity ownership behavior. Adds five focused and one integrated regression tests; 169 local tests pass. Live AI Dungeon validation has not been performed.
+
 # 0.6.4
 - Creates a dedicated `PLAYER — <name>` card from the saved `[PLAYER PROFILE]` and separates stable creator facts, dynamic starting state and confirmed persistent changes.
 - Supplies the authoritative player card on normal narrative turns without requiring a name mention; withholds it from scene, Auto-Cards and NPC maintenance turns.

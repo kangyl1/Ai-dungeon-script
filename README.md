@@ -1,12 +1,35 @@
+# Continuity Kit 0.6.5 — player-approved canon events
+
+Version 0.6.5 adds an approval gate to the structured canon timeline. When a matching `[CANON EVENT]` approaches, it is withheld from narrator guidance and a fixed notice asks the player to choose:
+
+```text
+/ck event allow
+/ck event alter
+/ck event postpone
+/ck event skip
+```
+
+`allow` permits the canon form if its prerequisites still fit. `alter` permits only a version consistent with played history. `postpone` offers it again after three eligible story turns. `skip` persistently withholds it. `/ck event status` shows the current decision and `/ck event reset` clears all saved timeline decisions. The script never guesses that an event occurred.
+
+Enable it in **Continuity Control → Details → Entry**:
+
+```text
+Timeline helper: true
+Timeline approval: true
+Guided arc: false
+```
+
+The scenario must contain valid `[CANON EVENT]` cards. Existing control cards that do not contain `Timeline approval:` use the safe approval behavior by default. Set `Timeline approval: false` only to restore the earlier automatic-reference behavior. Replace only the Library tab when upgrading from an earlier standard Continuity Kit installation.
+
+This is locally simulated and regression-tested; it has not been live-validated in AI Dungeon.
+
+---
+
 # Continuity Kit 0.6.4 — authoritative player character card
 
 Version 0.6.4 creates a persistent `PLAYER — <name>` story card from `[PLAYER PROFILE]`, separates stable profile data from dynamic state, supplies the card on ordinary narrative turns, and requires player confirmation before persistent character changes are written. It also excludes generic player-named cards from the kit's supplemental retrieval so Auto Cards, story-card retrieval and the continuity layer do not compete for player ownership.
 
 See [PLAYER-CARD-UPDATE.md](PLAYER-CARD-UPDATE.md) for installation, review commands, limits, ownership rules and validation. This release is built on the latest 0.6.3 reliability code; it supersedes the requested 0.4.2 base without discarding later fixes.
-
-## Repository and releases
-
-This GitHub repository is the canonical source for future Continuity Kit updates. Installable archives are kept in [`releases/`](releases/), while the root contains the current source modules, generated `Library.js`, hook scripts, documentation and regression tests. GitHub Actions rebuilds the bundle and runs every test suite on pushes and pull requests.
 
 ---
 

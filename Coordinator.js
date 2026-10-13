@@ -15,11 +15,11 @@ var ContinuityKit = (function () {
   function card(){
     let c=storyCards.find(c=>c.keys===KEY);
     if(!c||!String(c.entry||'').trim()){if(!c)addStoryCard(KEY,'','Continuity');c=storyCards.find(x=>x.keys===KEY);if(!c)throw Error('AI Dungeon did not expose the newly created Continuity Control card.');c.title=TITLE;
-      c.entry='Scene tracking: true\nAutomatic scene updates: false\nScene interval: 8\nPlayer name: \nPlayer character card: true\nCharacter change tracking: true\nCanon consistency: true\nCharacter references: true\nMemory cards: \nAlways-include cards: \nWord-overlap recall: false\nRecall cards: \nParent links: false\nGuided arc: false\nArc lookahead: 2\nArc cards: \n\nLOCKED CORRECTIONS (edit below; one field: value per line)\n# Fields: time, location, present, stage, pending, fact1 to fact8\n# Example: time: First morning of the adventure.\n# Remove a line to release its lock. Use none to clear pending.\n';
+      c.entry='Scene tracking: true\nAutomatic scene updates: false\nScene interval: 8\nPlayer name: \nPlayer character card: true\nCharacter change tracking: true\nCanon consistency: true\nCharacter references: true\nTimeline helper: false\nTimeline approval: true\nMemory cards: \nAlways-include cards: \nWord-overlap recall: false\nRecall cards: \nParent links: false\nGuided arc: false\nArc lookahead: 2\nArc cards: \n\nLOCKED CORRECTIONS (edit below; one field: value per line)\n# Fields: time, location, present, stage, pending, fact1 to fact8\n# Example: time: First morning of the adventure.\n# Remove a line to release its lock. Use none to clear pending.\n';
       c.description='Diagnostics appear here after the next turn. Edit settings/corrections in Entry, not Notes.';
     }return c;
   }
-  function settings(){const c=card(),lines=String(c.entry).split(/\r?\n/),o={enabled:true,automatic:false,interval:8,mode:'dedicated',player:'',playerCard:true,characterChanges:true,references:true,canon:true,names:[],always:[],wordRecall:false,recallTitles:[],parentLinks:false,arcTracking:false,arcLookahead:2,arcCards:[],locks:{}};
+  function settings(){const c=card(),lines=String(c.entry).split(/\r?\n/),o={enabled:true,automatic:false,interval:8,mode:'dedicated',player:'',playerCard:true,characterChanges:true,references:true,canon:true,timelineApproval:true,names:[],always:[],wordRecall:false,recallTitles:[],parentLinks:false,arcTracking:false,arcLookahead:2,arcCards:[],locks:{}};
     for(const line of lines){const m=/^([^:#]+):\s*(.*)$/.exec(line);if(!m)continue;const k=m[1].trim().toLowerCase(),v=m[2].trim();
       if(k==='scene tracking')o.enabled=v.toLowerCase()!=='false';
       else if(k==='automatic scene updates')o.automatic=v.toLowerCase()==='true';
@@ -33,6 +33,7 @@ var ContinuityKit = (function () {
       else if(k==='family references')o.familyReferences=v.toLowerCase()!=='false';
       else if(k==='mention references')o.mentionReferences=v.toLowerCase()!=='false';
       else if(k==='timeline helper')o.timeline=v.toLowerCase()==='true';
+      else if(k==='timeline approval')o.timelineApproval=v.toLowerCase()!=='false';
       else if(k==='mushoku timeline')o.mushokuTimeline=v.toLowerCase()==='true';
       else if(k==='event tracking')o.eventTracking=v.toLowerCase()!=='false';
       else if(k==='event reminders')o.eventReminders=v.toLowerCase()!=='false';
@@ -49,7 +50,7 @@ var ContinuityKit = (function () {
   }
   function isPlayer(name){const p=settings().player;return !!p&&(name.toLowerCase()===p.toLowerCase()||name.toLowerCase()===p.split(/\s+/)[0].toLowerCase());}
   function hash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return s.length+':'+(h>>>0).toString(16);}
-  function actions(){return history.slice(-80).map(x=>({text:norm(EventMemory.clean(String(x.text||x.rawText||''))),type:x.type})).filter(x=>x.text&&!x.text.includes('[Memory utility command only.')&&!x.text.startsWith('# Adventure Memory')&&!x.text.startsWith('>>>')&&!x.text.startsWith('[Continuity update:')&&!/^\/(?:ck|memory)\b/i.test(x.text));}
+  function actions(){return history.slice(-80).map(x=>({text:norm(CanonTimeline.clean(EventMemory.clean(String(x.text||x.rawText||'')))),type:x.type})).filter(x=>x.text&&!x.text.includes('[Memory utility command only.')&&!x.text.startsWith('# Adventure Memory')&&!x.text.startsWith('>>>')&&!x.text.startsWith('[Continuity update:')&&!/^\/(?:ck|memory)\b/i.test(x.text));}
   function sync(){const d=data(),now=actions().map(x=>hash(x.text)),old=d.seen;
     const common=old.map((h,i)=>now.includes(h)?i:-1).filter(i=>i>=0);
     if(common.length){const first=common[0],gone=old.slice(first).filter(h=>!now.includes(h));
@@ -66,6 +67,7 @@ var ContinuityKit = (function () {
   }
   function clean(s){
     s=EventMemory.clean(s);
+    s=CanonTimeline.clean(s);
     s=s.replace(/\[Memory utility command only\. Do not advance the story\. Reply briefly; the script will display the utility result\.\]/g,'');
     s=s.replace(/# Adventure Memory\r?\n[\s\S]*?## Diagnostics\r?\n- Records: \d+\/2000; source batches: \d+\/1500\.[\s\S]*?(?=\n\n|$)/g,'');
     s=s.replace(/\[ADVENTURE MEMORY\.[\s\S]*?Empty array is better than invented memory\.\]/g,'');
@@ -87,7 +89,7 @@ var ContinuityKit = (function () {
     if(s.prefix===null)c.description=s.description;
     else {const m=marker.exec(c.description||'');c.description=m?s.prefix+(c.description||'').slice(m.index):s.description;}
   }}
-  function diagnostics(){const d=data(),o=settings(),c=card();c.description='Continuity Kit 0.6.4 — diagnostics (automatically refreshed)\nMode: '+d.mode+'\nLast result: '+d.last+'\nBuilt-in Memories section seen: '+(d.nativeMemories?'yes':'no')+'\nMissed scene updates: '+d.misses+'\n\nCURRENT SCENE\n'+fields.map(k=>k+': '+(o.locks[k]||d.scene[k]?.value||'Unknown')+(o.locks[k]?' [locked]':'')).join('\n')+'\n\nWARNINGS\n'+(d.warnings.join('\n')||'None')+TargetedMemory.status()+CharacterReferences.status()+PlayerProfile.status()+PlayerCharacter.status()+GuidedArc.status(o)+'\nCANON CONSISTENCY\n'+(d.canonStatus||'Not applied yet')+'\n'+'\n\nLAST RAW SCENE RESPONSE ('+(d.rawSceneReplyLength||0)+' characters; first 1800 shown):\n'+(d.rawSceneReplyLength===0?'(Empty response received)':d.rawSceneReply||'None yet')+'\n\nNPC thoughts are optional: Configure Inner Self. Auto-Cards settings: Configure Auto-Cards. Existing card entries are protected; card memory notes remain AI-written and fallible.';}
+  function diagnostics(){const d=data(),o=settings(),c=card();c.description='Continuity Kit 0.6.5 — diagnostics (automatically refreshed)\nMode: '+d.mode+'\nLast result: '+d.last+'\nBuilt-in Memories section seen: '+(d.nativeMemories?'yes':'no')+'\nMissed scene updates: '+d.misses+'\n\nCURRENT SCENE\n'+fields.map(k=>k+': '+(o.locks[k]||d.scene[k]?.value||'Unknown')+(o.locks[k]?' [locked]':'')).join('\n')+'\n\nWARNINGS\n'+(d.warnings.join('\n')||'None')+TargetedMemory.status()+CharacterReferences.status()+PlayerProfile.status()+PlayerCharacter.status()+GuidedArc.status(o)+'\nCANON CONSISTENCY\n'+(d.canonStatus||'Not applied yet')+'\n'+'\n\nLAST RAW SCENE RESPONSE ('+(d.rawSceneReplyLength||0)+' characters; first 1800 shown):\n'+(d.rawSceneReplyLength===0?'(Empty response received)':d.rawSceneReply||'None yet')+'\n\nNPC thoughts are optional: Configure Inner Self. Auto-Cards settings: Configure Auto-Cards. Existing card entries are protected; card memory notes remain AI-written and fallible.';}
   const rules='\n[CONTINUITY GUIDANCE: Story cards describe established background and starting conditions. Later played events may change relationships and status; never reset them merely because a card activates. NPC thoughts are subjective, not world facts; characters know only what they witnessed or plausibly learned. Do not reveal secrets through narration or invent player thoughts, choices, goals or feelings. Corrections below are player-authored. A scene snapshot is fallible and may lag one response; explicit newer events take priority over an unlocked snapshot.]\n';
   function block(o){const d=data();return rules+'[CURRENT SCENE]\n'+fields.map(k=>k+': '+(o.locks[k]||d.scene[k]?.value||'Unknown')+(o.locks[k]?' [PLAYER LOCK]':'')).join('\n')+'\n'+Object.keys(o.locks).filter(k=>!fields.includes(k)).map(k=>'PLAYER CORRECTION: '+o.locks[k]).join('\n')+'\n[/CURRENT SCENE]\n';}
   const task='\n[SCENE UPDATE TASK: Before continuing the story, output exactly one short block: <scene>{"field":"location","value":"short current value","quote":"exact quote from recent played story"}</scene> then the story. Choose ONE of time, location, present, stage, pending. Record only a changed fact explicitly established BEFORE this response, not plans as completed events, future canon, guesses or player inner states. A quote must contain at least 12 characters copied from recent story. Never update a PLAYER LOCK. Use <scene>{}</scene> when no supported change exists. This is bookkeeping, not dialogue. After the block, continue normally; leave player responses to the player.]\n';
@@ -184,6 +186,7 @@ var ContinuityKit = (function () {
       FamilyReferences.remember(value);
       MentionReferences.remember(value);
       const profileCommand=PlayerProfile.command(value);if(profileCommand){d.last=profileCommand.message;diagnostics();return {text:'[Continuity profile: '+profileCommand.message+']',stop:true};}
+      const timelineCommand=CanonTimeline.command(value,o);if(timelineCommand){d.last=timelineCommand.message;diagnostics();return {text:'[Continuity timeline: '+timelineCommand.message+']',stop:true};}
       const arcCommand=GuidedArc.command(value,o);if(arcCommand){d.last=arcCommand.message;diagnostics();return {text:'[Continuity arc: '+arcCommand.message+']',stop:true};}
       if(/^\s*\/ck\s+refresh\s*$/i.test(value)){d.requestRefresh=true;d.last='Scene refresh requested.';diagnostics();return {text:'[Continuity update: refresh requested.]'};}
       // /hm is retired; keep accidental commands out of subsequent story contexts.
@@ -192,7 +195,7 @@ var ContinuityKit = (function () {
     }
     if(hook==='context'){
       d.mode='idle';d.sources=[];d.references=[];d.canonStatus='Not applied on this turn';attach(o);
-      const base=clean(value).replace(/\[Continuity update:[^\]\r\n]*\]/g,'').replace(/\[Continuity arc:[^\]\r\n]*\]/g,'').replace(/\[Continuity profile:[^\]\r\n]*\]/g,'').replace(/\[Continuity control: inspect the Continuity Control story card\.\]/g,'');
+      const base=clean(value).replace(/\[Continuity update:[^\]\r\n]*\]/g,'').replace(/\[Continuity timeline:[^\]\r\n]*\]/g,'').replace(/\[Continuity arc:[^\]\r\n]*\]/g,'').replace(/\[Continuity profile:[^\]\r\n]*\]/g,'').replace(/\[Continuity control: inspect the Continuity Control story card\.\]/g,'');
       PlayerProfile.capture(base);
       PlayerCharacter.ensure();
       const max=Number(info.maxChars)||0;
@@ -250,7 +253,7 @@ var ContinuityKit = (function () {
             d.scene[u.field]={value:u.value.trim(),source:source.hash};d.last='Recorded '+u.field+' from recent story (AI interpretation; not independently verified).';
           }
         }catch(e){d.misses++;d.last='Scene update rejected: '+e.message;}}
-        d.sources=[];diagnostics();return {text:narrative.trim()?EventMemory.observe(PlayerCharacter.observe(narrative,o),o):'[No story continuation was generated. Retry this response.]'};
+        d.sources=[];diagnostics();return {text:narrative.trim()?EventMemory.observe(PlayerCharacter.observe(narrative,o),o)+CanonTimeline.notice():'[No story continuation was generated. Retry this response.]'};
       }
       if(d.mode==='cards'){upstream('output');diagnostics();return {text:globalThis.text||value};}
       if(d.mode==='npc'){
@@ -259,7 +262,7 @@ var ContinuityKit = (function () {
         else {globalThis.text=value;d.last='NPC operation absent or malformed; narrative preserved.';}
         diagnostics();return {text:globalThis.text||'[No story continuation was generated. Retry this response.]'};
       }
-      const story=d.mode==='story'?EventMemory.observe(PlayerCharacter.observe(value,o),o):value;diagnostics();return {text:story};
+      const story=d.mode==='story'?EventMemory.observe(PlayerCharacter.observe(value,o),o)+CanonTimeline.notice():value;diagnostics();return {text:story};
     }
     return {text:value};
   }

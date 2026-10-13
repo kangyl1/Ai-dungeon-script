@@ -1,4 +1,33 @@
-# Continuity Kit 0.6.1 — experimental Mushoku timeline helper
+# Continuity Kit 0.6.5 — player-approved timeline setup
+
+Add these lines to **Continuity Control → Details → Entry**:
+
+```text
+Timeline helper: true
+Timeline approval: true
+Guided arc: false
+```
+
+When the latest eligible story passage matches a valid `[CANON EVENT]` card by its cue, or by a compatible explicit current year and location, the event is held back. After that narrative response, a fixed approval notice appears. Use one command:
+
+```text
+/ck event allow       # canon form may be supplied if prerequisites still fit
+/ck event alter       # only an altered form consistent with played history
+/ck event postpone    # withhold and offer again after three eligible story turns
+/ck event skip        # persistently withhold this event
+/ck event status      # show the waiting event and decision counts
+/ck event reset       # clear all timeline decisions
+```
+
+Decisions are stored in the adventure's script state and keyed by the structured event ID. Deleting an event card also removes its stale saved decision on the next timeline evaluation. Approval does not claim that the event happened; it only permits reference guidance on later matching turns. Played history, prerequisites and player agency still take priority.
+
+The notice is removed from the continuity layer's later source text. It is paced rather than printed on every output. Maintenance turns do not receive timeline guidance or notices. Set `Timeline approval: false` only if you deliberately want the older automatic-reference behavior.
+
+This feature requires structured `[CANON EVENT]` cards. It cannot convert ordinary lore cards into events, infer a reliable calendar from the player's birth year, or guarantee that AI Dungeon's model follows guidance. Local mocked-runtime tests passed; no live AI Dungeon validation is claimed.
+
+---
+
+# Historical 0.6.1 experimental Mushoku timeline notes
 
 ## What is ready
 

@@ -23,7 +23,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 */
-/* Continuity Kit 0.6.4 — adapted Inner Self 1.0.2 / bundled Auto-Cards 1.1.3.
+/* Continuity Kit 0.6.5 — adapted Inner Self 1.0.2 / bundled Auto-Cards 1.1.3.
  * Upstream: LewdLeah, MIT; see LICENSE and CHANGES.md. */
 // Your "Library" tab should look like this
 
@@ -9172,11 +9172,11 @@ var ContinuityKit = (function () {
   function card(){
     let c=storyCards.find(c=>c.keys===KEY);
     if(!c||!String(c.entry||'').trim()){if(!c)addStoryCard(KEY,'','Continuity');c=storyCards.find(x=>x.keys===KEY);if(!c)throw Error('AI Dungeon did not expose the newly created Continuity Control card.');c.title=TITLE;
-      c.entry='Scene tracking: true\nAutomatic scene updates: false\nScene interval: 8\nPlayer name: \nPlayer character card: true\nCharacter change tracking: true\nCanon consistency: true\nCharacter references: true\nMemory cards: \nAlways-include cards: \nWord-overlap recall: false\nRecall cards: \nParent links: false\nGuided arc: false\nArc lookahead: 2\nArc cards: \n\nLOCKED CORRECTIONS (edit below; one field: value per line)\n# Fields: time, location, present, stage, pending, fact1 to fact8\n# Example: time: First morning of the adventure.\n# Remove a line to release its lock. Use none to clear pending.\n';
+      c.entry='Scene tracking: true\nAutomatic scene updates: false\nScene interval: 8\nPlayer name: \nPlayer character card: true\nCharacter change tracking: true\nCanon consistency: true\nCharacter references: true\nTimeline helper: false\nTimeline approval: true\nMemory cards: \nAlways-include cards: \nWord-overlap recall: false\nRecall cards: \nParent links: false\nGuided arc: false\nArc lookahead: 2\nArc cards: \n\nLOCKED CORRECTIONS (edit below; one field: value per line)\n# Fields: time, location, present, stage, pending, fact1 to fact8\n# Example: time: First morning of the adventure.\n# Remove a line to release its lock. Use none to clear pending.\n';
       c.description='Diagnostics appear here after the next turn. Edit settings/corrections in Entry, not Notes.';
     }return c;
   }
-  function settings(){const c=card(),lines=String(c.entry).split(/\r?\n/),o={enabled:true,automatic:false,interval:8,mode:'dedicated',player:'',playerCard:true,characterChanges:true,references:true,canon:true,names:[],always:[],wordRecall:false,recallTitles:[],parentLinks:false,arcTracking:false,arcLookahead:2,arcCards:[],locks:{}};
+  function settings(){const c=card(),lines=String(c.entry).split(/\r?\n/),o={enabled:true,automatic:false,interval:8,mode:'dedicated',player:'',playerCard:true,characterChanges:true,references:true,canon:true,timelineApproval:true,names:[],always:[],wordRecall:false,recallTitles:[],parentLinks:false,arcTracking:false,arcLookahead:2,arcCards:[],locks:{}};
     for(const line of lines){const m=/^([^:#]+):\s*(.*)$/.exec(line);if(!m)continue;const k=m[1].trim().toLowerCase(),v=m[2].trim();
       if(k==='scene tracking')o.enabled=v.toLowerCase()!=='false';
       else if(k==='automatic scene updates')o.automatic=v.toLowerCase()==='true';
@@ -9190,6 +9190,7 @@ var ContinuityKit = (function () {
       else if(k==='family references')o.familyReferences=v.toLowerCase()!=='false';
       else if(k==='mention references')o.mentionReferences=v.toLowerCase()!=='false';
       else if(k==='timeline helper')o.timeline=v.toLowerCase()==='true';
+      else if(k==='timeline approval')o.timelineApproval=v.toLowerCase()!=='false';
       else if(k==='mushoku timeline')o.mushokuTimeline=v.toLowerCase()==='true';
       else if(k==='event tracking')o.eventTracking=v.toLowerCase()!=='false';
       else if(k==='event reminders')o.eventReminders=v.toLowerCase()!=='false';
@@ -9206,7 +9207,7 @@ var ContinuityKit = (function () {
   }
   function isPlayer(name){const p=settings().player;return !!p&&(name.toLowerCase()===p.toLowerCase()||name.toLowerCase()===p.split(/\s+/)[0].toLowerCase());}
   function hash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return s.length+':'+(h>>>0).toString(16);}
-  function actions(){return history.slice(-80).map(x=>({text:norm(EventMemory.clean(String(x.text||x.rawText||''))),type:x.type})).filter(x=>x.text&&!x.text.includes('[Memory utility command only.')&&!x.text.startsWith('# Adventure Memory')&&!x.text.startsWith('>>>')&&!x.text.startsWith('[Continuity update:')&&!/^\/(?:ck|memory)\b/i.test(x.text));}
+  function actions(){return history.slice(-80).map(x=>({text:norm(CanonTimeline.clean(EventMemory.clean(String(x.text||x.rawText||'')))),type:x.type})).filter(x=>x.text&&!x.text.includes('[Memory utility command only.')&&!x.text.startsWith('# Adventure Memory')&&!x.text.startsWith('>>>')&&!x.text.startsWith('[Continuity update:')&&!/^\/(?:ck|memory)\b/i.test(x.text));}
   function sync(){const d=data(),now=actions().map(x=>hash(x.text)),old=d.seen;
     const common=old.map((h,i)=>now.includes(h)?i:-1).filter(i=>i>=0);
     if(common.length){const first=common[0],gone=old.slice(first).filter(h=>!now.includes(h));
@@ -9223,6 +9224,7 @@ var ContinuityKit = (function () {
   }
   function clean(s){
     s=EventMemory.clean(s);
+    s=CanonTimeline.clean(s);
     s=s.replace(/\[Memory utility command only\. Do not advance the story\. Reply briefly; the script will display the utility result\.\]/g,'');
     s=s.replace(/# Adventure Memory\r?\n[\s\S]*?## Diagnostics\r?\n- Records: \d+\/2000; source batches: \d+\/1500\.[\s\S]*?(?=\n\n|$)/g,'');
     s=s.replace(/\[ADVENTURE MEMORY\.[\s\S]*?Empty array is better than invented memory\.\]/g,'');
@@ -9244,7 +9246,7 @@ var ContinuityKit = (function () {
     if(s.prefix===null)c.description=s.description;
     else {const m=marker.exec(c.description||'');c.description=m?s.prefix+(c.description||'').slice(m.index):s.description;}
   }}
-  function diagnostics(){const d=data(),o=settings(),c=card();c.description='Continuity Kit 0.6.4 — diagnostics (automatically refreshed)\nMode: '+d.mode+'\nLast result: '+d.last+'\nBuilt-in Memories section seen: '+(d.nativeMemories?'yes':'no')+'\nMissed scene updates: '+d.misses+'\n\nCURRENT SCENE\n'+fields.map(k=>k+': '+(o.locks[k]||d.scene[k]?.value||'Unknown')+(o.locks[k]?' [locked]':'')).join('\n')+'\n\nWARNINGS\n'+(d.warnings.join('\n')||'None')+TargetedMemory.status()+CharacterReferences.status()+PlayerProfile.status()+PlayerCharacter.status()+GuidedArc.status(o)+'\nCANON CONSISTENCY\n'+(d.canonStatus||'Not applied yet')+'\n'+'\n\nLAST RAW SCENE RESPONSE ('+(d.rawSceneReplyLength||0)+' characters; first 1800 shown):\n'+(d.rawSceneReplyLength===0?'(Empty response received)':d.rawSceneReply||'None yet')+'\n\nNPC thoughts are optional: Configure Inner Self. Auto-Cards settings: Configure Auto-Cards. Existing card entries are protected; card memory notes remain AI-written and fallible.';}
+  function diagnostics(){const d=data(),o=settings(),c=card();c.description='Continuity Kit 0.6.5 — diagnostics (automatically refreshed)\nMode: '+d.mode+'\nLast result: '+d.last+'\nBuilt-in Memories section seen: '+(d.nativeMemories?'yes':'no')+'\nMissed scene updates: '+d.misses+'\n\nCURRENT SCENE\n'+fields.map(k=>k+': '+(o.locks[k]||d.scene[k]?.value||'Unknown')+(o.locks[k]?' [locked]':'')).join('\n')+'\n\nWARNINGS\n'+(d.warnings.join('\n')||'None')+TargetedMemory.status()+CharacterReferences.status()+PlayerProfile.status()+PlayerCharacter.status()+GuidedArc.status(o)+'\nCANON CONSISTENCY\n'+(d.canonStatus||'Not applied yet')+'\n'+'\n\nLAST RAW SCENE RESPONSE ('+(d.rawSceneReplyLength||0)+' characters; first 1800 shown):\n'+(d.rawSceneReplyLength===0?'(Empty response received)':d.rawSceneReply||'None yet')+'\n\nNPC thoughts are optional: Configure Inner Self. Auto-Cards settings: Configure Auto-Cards. Existing card entries are protected; card memory notes remain AI-written and fallible.';}
   const rules='\n[CONTINUITY GUIDANCE: Story cards describe established background and starting conditions. Later played events may change relationships and status; never reset them merely because a card activates. NPC thoughts are subjective, not world facts; characters know only what they witnessed or plausibly learned. Do not reveal secrets through narration or invent player thoughts, choices, goals or feelings. Corrections below are player-authored. A scene snapshot is fallible and may lag one response; explicit newer events take priority over an unlocked snapshot.]\n';
   function block(o){const d=data();return rules+'[CURRENT SCENE]\n'+fields.map(k=>k+': '+(o.locks[k]||d.scene[k]?.value||'Unknown')+(o.locks[k]?' [PLAYER LOCK]':'')).join('\n')+'\n'+Object.keys(o.locks).filter(k=>!fields.includes(k)).map(k=>'PLAYER CORRECTION: '+o.locks[k]).join('\n')+'\n[/CURRENT SCENE]\n';}
   const task='\n[SCENE UPDATE TASK: Before continuing the story, output exactly one short block: <scene>{"field":"location","value":"short current value","quote":"exact quote from recent played story"}</scene> then the story. Choose ONE of time, location, present, stage, pending. Record only a changed fact explicitly established BEFORE this response, not plans as completed events, future canon, guesses or player inner states. A quote must contain at least 12 characters copied from recent story. Never update a PLAYER LOCK. Use <scene>{}</scene> when no supported change exists. This is bookkeeping, not dialogue. After the block, continue normally; leave player responses to the player.]\n';
@@ -9341,6 +9343,7 @@ var ContinuityKit = (function () {
       FamilyReferences.remember(value);
       MentionReferences.remember(value);
       const profileCommand=PlayerProfile.command(value);if(profileCommand){d.last=profileCommand.message;diagnostics();return {text:'[Continuity profile: '+profileCommand.message+']',stop:true};}
+      const timelineCommand=CanonTimeline.command(value,o);if(timelineCommand){d.last=timelineCommand.message;diagnostics();return {text:'[Continuity timeline: '+timelineCommand.message+']',stop:true};}
       const arcCommand=GuidedArc.command(value,o);if(arcCommand){d.last=arcCommand.message;diagnostics();return {text:'[Continuity arc: '+arcCommand.message+']',stop:true};}
       if(/^\s*\/ck\s+refresh\s*$/i.test(value)){d.requestRefresh=true;d.last='Scene refresh requested.';diagnostics();return {text:'[Continuity update: refresh requested.]'};}
       // /hm is retired; keep accidental commands out of subsequent story contexts.
@@ -9349,7 +9352,7 @@ var ContinuityKit = (function () {
     }
     if(hook==='context'){
       d.mode='idle';d.sources=[];d.references=[];d.canonStatus='Not applied on this turn';attach(o);
-      const base=clean(value).replace(/\[Continuity update:[^\]\r\n]*\]/g,'').replace(/\[Continuity arc:[^\]\r\n]*\]/g,'').replace(/\[Continuity profile:[^\]\r\n]*\]/g,'').replace(/\[Continuity control: inspect the Continuity Control story card\.\]/g,'');
+      const base=clean(value).replace(/\[Continuity update:[^\]\r\n]*\]/g,'').replace(/\[Continuity timeline:[^\]\r\n]*\]/g,'').replace(/\[Continuity arc:[^\]\r\n]*\]/g,'').replace(/\[Continuity profile:[^\]\r\n]*\]/g,'').replace(/\[Continuity control: inspect the Continuity Control story card\.\]/g,'');
       PlayerProfile.capture(base);
       PlayerCharacter.ensure();
       const max=Number(info.maxChars)||0;
@@ -9407,7 +9410,7 @@ var ContinuityKit = (function () {
             d.scene[u.field]={value:u.value.trim(),source:source.hash};d.last='Recorded '+u.field+' from recent story (AI interpretation; not independently verified).';
           }
         }catch(e){d.misses++;d.last='Scene update rejected: '+e.message;}}
-        d.sources=[];diagnostics();return {text:narrative.trim()?EventMemory.observe(PlayerCharacter.observe(narrative,o),o):'[No story continuation was generated. Retry this response.]'};
+        d.sources=[];diagnostics();return {text:narrative.trim()?EventMemory.observe(PlayerCharacter.observe(narrative,o),o)+CanonTimeline.notice():'[No story continuation was generated. Retry this response.]'};
       }
       if(d.mode==='cards'){upstream('output');diagnostics();return {text:globalThis.text||value};}
       if(d.mode==='npc'){
@@ -9416,7 +9419,7 @@ var ContinuityKit = (function () {
         else {globalThis.text=value;d.last='NPC operation absent or malformed; narrative preserved.';}
         diagnostics();return {text:globalThis.text||'[No story continuation was generated. Retry this response.]'};
       }
-      const story=d.mode==='story'?EventMemory.observe(PlayerCharacter.observe(value,o),o):value;diagnostics();return {text:story};
+      const story=d.mode==='story'?EventMemory.observe(PlayerCharacter.observe(value,o),o)+CanonTimeline.notice():value;diagnostics();return {text:story};
     }
     return {text:value};
   }
@@ -9631,17 +9634,23 @@ EventMemory=(function(base){
   return {remember:safe(base.remember),command:safe(command,t=>/^\s*\/memory(?:\s|$)/i.test(t)?'Review unavailable; story continues.':null),review:safe(review),observe:safe(observe,t=>t),recall:safe(base.recall,''),clean:base.clean,status:safe(status,'\nEVENT MEMORY unavailable; archive preserved.\n')};
 })(EventMemory);
 
-/* Universal opt-in card references. Never infer completion or mutate canon. */
+/* Universal opt-in canon references with explicit player approval. Never infer completion. */
 var CanonTimeline=(function(){
   'use strict';
-  const START='[CANON EVENT]',END='[/CANON EVENT]';
+  const START='[CANON EVENT]',END='[/CANON EVENT]',NOTICE='[CANON EVENT APPROVAL]';
   const key=x=>String(x||'').trim().toLowerCase();
   const esc=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
   const has=(s,x)=>new RegExp('(?:^|[^\\p{L}\\p{N}])'+esc(x)+'(?=$|[^\\p{L}\\p{N}])','iu').test(s);
   const str=(x,n)=>typeof x==='string'&&x.trim().length>0&&x.length<=n;
   const list=(x,n)=>Array.isArray(x)&&x.length<=8&&x.every(v=>str(v,n));
   const content=c=>String(c.entry||c.value||'').replace(/^\{title:\s*[^}]+\}\s*/i,'').trim();
-  function data(){const r=state.continuityKit01||(state.continuityKit01={});return r.timeline||(r.timeline={});}
+  function data(){
+    const r=state.continuityKit01||(state.continuityKit01={}),d=r.timeline||(r.timeline={});
+    if(!d.decisions||typeof d.decisions!=='object')d.decisions={};
+    if(!d.snoozed||typeof d.snoozed!=='object')d.snoozed={};
+    if(!Number.isSafeInteger(d.tick))d.tick=0;
+    return d;
+  }
   function parse(card){
     const raw=content(card);
     if(raw.length>6000||!raw.endsWith(END))throw Error('invalid wrapper/size');
@@ -9664,39 +9673,95 @@ var CanonTimeline=(function(){
     for(const [id,n]of counts)if(n>1)errors.push('Duplicate event id excluded: '+id);
     return {events:events.filter(e=>counts.get(key(e.id))===1),errors};
   }
-  function latest(){return history.slice(-8).filter(a=>!['start','say','do'].includes(a.type)&&!/^\s*(?:\/|\[Continuity|\[CK|>>>)/i.test(a.text||a.rawText||'')).slice(-1).map(a=>String(a.text||a.rawText||'').slice(-4000))[0]||'';}
+  function clean(s){return String(s||'').replace(/\n?\[CANON EVENT APPROVAL\][\s\S]*?\[\/CANON EVENT APPROVAL\]\n?/g,'');}
+  function latest(){return history.slice(-8).filter(a=>!['start','say','do'].includes(a.type)&&!/^\s*(?:\/|\[Continuity|\[CK|>>>)/i.test(a.text||a.rawText||'')).slice(-1).map(a=>clean(String(a.text||a.rawText||'')).slice(-4000))[0]||'';}
   function currentTime(text,lock){
     const raw=lock?String(lock).trim():(/^Current year:\s*([^\r\n.!?]+)(?:[.!?]|$)/im.exec(text)||[])[1];
     const m=/^([\p{L}][\p{L}\p{N}_-]{0,39}?)\s*(-?\d{1,9})$/u.exec(String(raw||'').trim());
     return m?{calendar:key(m[1]),year:Number(m[2])}:null;
   }
-  function block(opts,context){
-    const d=data();d.selected=[];d.errors=[];
-    if(!opts.timeline){d.diagnostic=opts.mushokuTimeline?'Disabled; use Timeline helper: true with structured event cards.':'Disabled';return '';}
-    if(context.includes('[CANON TIMELINE REFERENCE')){d.diagnostic='Already supplied';return '';}
-    const idx=index();d.errors=idx.errors.slice(0,8);
-    const text=latest(),time=currentTime(text,opts.locks&&opts.locks.time),location=String(opts.locks&&opts.locks.location||text);
-    const candidates=[];
+  function when(e){return e.years?e.calendar+' '+e.years.join(' to '):'Relative/unknown; see prerequisites';}
+  function candidates(opts){
+    const d=data(),idx=index();d.errors=idx.errors.slice(0,8);
+    const text=latest(),time=currentTime(text,opts.locks&&opts.locks.time),location=String(opts.locks&&opts.locks.location||text),found=[];
     for(const e of idx.events){
       const cue=e.cues.some(c=>has(text,c)),place=e.locations.some(p=>has(location,p));
       const comparable=time&&key(e.calendar)===time.calendar&&e.years!==null;
       const within=comparable&&time.year>=e.years[0]&&time.year<=e.years[1];
       if(!cue&&!(within&&place))continue;
-      candidates.push({e,score:(cue?10:0)+(place?2:0)+(within?1:0),outside:comparable&&!within});
+      found.push({e,score:(cue?10:0)+(place?2:0)+(within?1:0),outside:comparable&&!within});
     }
-    candidates.sort((a,b)=>b.score-a.score||key(a.e.id).localeCompare(key(b.e.id)));
-    if(candidates.length>1&&candidates[0].score===candidates[1].score&&candidates[0].score<10){d.diagnostic='Ambiguous date/location; withheld';return '';}
+    found.sort((a,b)=>b.score-a.score||key(a.e.id).localeCompare(key(b.e.id)));
+    if(found.length>1&&found[0].score===found[1].score&&found[0].score<10)return {idx,found:[],ambiguous:true};
+    return {idx,found,ambiguous:false};
+  }
+  function reconcile(d,idx){
+    const valid=new Set(idx.events.map(e=>key(e.id)));
+    for(const id of Object.keys(d.decisions))if(!valid.has(id))delete d.decisions[id];
+    for(const id of Object.keys(d.snoozed))if(!valid.has(id))delete d.snoozed[id];
+    if(d.pending&&!valid.has(key(d.pending.id)))d.pending=null;
+  }
+  function decide(choice){
+    const d=data(),p=d.pending;
+    if(!p)return {message:'No canon event is waiting for approval.'};
+    const id=key(p.id),title=p.title;
+    if(choice==='postpone'){
+      d.snoozed[id]=d.tick+3;d.pending=null;d.notify=false;
+      return {message:title+' postponed. It will be offered again after three eligible story turns.'};
+    }
+    d.decisions[id]=choice;delete d.snoozed[id];d.pending=null;d.notify=false;
+    return {message:title+(choice==='allow'?' approved in its canon form.':choice==='alter'?' approved only in an altered form that follows played history.':' skipped and will remain withheld.')};
+  }
+  function command(text,opts){
+    const m=/^\s*\/ck\s+event(?:\s+(.*?))?\s*$/i.exec(String(text));if(!m)return null;
+    const arg=String(m[1]||'status').trim().toLowerCase(),d=data();
+    if(arg==='status')return {message:summary(opts)};
+    if(['allow','alter','postpone','skip'].includes(arg))return decide(arg);
+    if(arg==='reset'){
+      d.decisions={};d.snoozed={};d.pending=null;d.notify=false;
+      return {message:'Canon-event approvals reset. Matching events will be offered again.'};
+    }
+    return {message:'Event commands: status, allow, alter, postpone, skip, reset.'};
+  }
+  function block(opts,context){
+    const d=data();d.selected=[];d.errors=[];
+    if(!opts.timeline){d.pending=null;d.notify=false;d.diagnostic=opts.mushokuTimeline?'Disabled; use Timeline helper: true with structured event cards.':'Disabled';return '';}
+    if(context.includes('[CANON TIMELINE REFERENCE')){d.diagnostic='Already supplied';return '';}
+    const match=candidates(opts),idx=match.idx;reconcile(d,idx);d.tick++;
+    if(match.ambiguous){d.diagnostic='Ambiguous date/location; withheld';return '';}
+    const approved=[];
+    for(const c of match.found){
+      const id=key(c.e.id),choice=d.decisions[id];
+      if(choice==='allow'||choice==='alter'){approved.push({...c,choice});continue;}
+      if(choice==='skip')continue;
+      if(opts.timelineApproval!==false){
+        if((d.snoozed[id]||0)>d.tick)continue;
+        if(!d.pending){d.pending={id:c.e.id,title:c.e.title,when:when(c.e),summary:c.e.summary};d.notify=true;}
+        else if(key(d.pending.id)===id&&d.tick>=(d.nextReminder||Infinity))d.notify=true;
+      }else approved.push({...c,choice:'legacy'});
+    }
     const intro='\n[CANON TIMELINE REFERENCE — background, NOT proof of present events]\nPlayed history overrides canon. Check prerequisites and whether events already happened or were prevented. Never replay events, force player actions, or reveal future secrets to characters. Dates describe baseline canon, not deadlines. Prerequisites and changes are narrator checks, NOT verified adventure state.\n';
     const end='[/CANON TIMELINE REFERENCE]\n';let body='';
-    for(const c of candidates){
+    for(const c of approved){
       if(d.selected.length===2)break;
-      const e=c.e,b=JSON.stringify({title:e.title,when:e.years?e.calendar+' '+e.years.join(' to '):'Relative/unknown; see prerequisites',certainty:e.certainty,referenceOnlyOutsideDate:!!c.outside,participants:e.participants,locations:e.locations,canon:e.summary,checkBeforeUsing:e.prerequisites,changesMayInvalidate:e.changes,source:e.source})+'\n';
+      const e=c.e,b=JSON.stringify({title:e.title,playerDecision:c.choice==='alter'?'ALTER — preserve the event only in a form consistent with played history':c.choice==='allow'?'ALLOW — canon form may occur if prerequisites still hold':undefined,when:when(e),certainty:e.certainty,referenceOnlyOutsideDate:!!c.outside,participants:e.participants,locations:e.locations,canon:e.summary,checkBeforeUsing:e.prerequisites,changesMayInvalidate:e.changes,source:e.source})+'\n';
       if(intro.length+body.length+b.length+end.length>2800)continue;
       body+=b;d.selected.push(e.id);
     }
-    d.diagnostic=d.selected.length?'Selected '+d.selected.join(', ')+' from '+idx.events.length+' valid event cards.':'No clear matching event (or entry exceeds timeline budget).';
+    const waiting=d.pending?' Waiting for approval: '+d.pending.title+'.':'';
+    d.diagnostic=d.selected.length?'Selected '+d.selected.join(', ')+' from '+idx.events.length+' valid event cards.'+waiting:waiting.trim()||'No clear matching approved event (or entry exceeds timeline budget).';
     return body?intro+body+end:'';
   }
-  function status(){const d=data();return '\nCANON TIMELINE\n'+(d.diagnostic||'Not evaluated')+'\n'+(d.errors||[]).join('\n')+'\n';}
-  return {block,status};
+  function notice(){
+    const d=data();if(!d.pending||!d.notify)return '';
+    d.notify=false;d.nextReminder=d.tick+4;
+    return '\n\n'+NOTICE+'\nApproaching: '+d.pending.title+' ('+d.pending.when+')\n'+d.pending.summary+'\nThis event is withheld until you decide. Reply with /ck event allow, /ck event alter, /ck event postpone, or /ck event skip.\n[/CANON EVENT APPROVAL]';
+  }
+  function summary(opts){
+    const d=data(),decided=Object.values(d.decisions||{}).reduce((a,x)=>(a[x]=(a[x]||0)+1,a),{});
+    if(!opts||!opts.timeline)return 'Canon Timeline is disabled.';
+    return (d.pending?'Waiting for approval: '+d.pending.title+' ('+d.pending.when+').':'No canon event is waiting for approval.')+' Decisions: '+(Object.keys(decided).map(k=>k+' '+decided[k]).join(', ')||'none')+'.';
+  }
+  function status(){const d=data();return '\nCANON TIMELINE\n'+(d.diagnostic||'Not evaluated')+'\n'+(d.pending?'Approval pending: '+d.pending.title+'\n':'')+(d.errors||[]).join('\n')+'\n';}
+  return {block,command,notice,clean,status};
 })();
